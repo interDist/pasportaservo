@@ -1,7 +1,7 @@
 {% extends 'hosting/base_form.html' %}
-{% load i18n %}
+{% load i18n ps_extras %}
 
-{% block head_title %}
+{% block-compacted head_title %}
     {% if user.is_staff and profile and user.profile != profile %}
         {% if profile.user %}
             {% trans "Update user's details" %}{% if profile.name %}: {{ profile.name }} {% else %} #{{ profile.id }} {% endif %}
@@ -22,7 +22,7 @@
         {% endif %}
     {% endif %}
 {% endblock %}
-{% block head_title_separator %}
+{% block-compacted head_title_separator %}
     {% if not profile and not user.profile and not view.place %}
         {% trans "at" %}
     {% else %}

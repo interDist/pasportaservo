@@ -1,5 +1,5 @@
 {% extends 'hosting/base.html' %}
-{% load i18n static %}
+{% load i18n static ps_extras %}
 
 {% block page_class %} search{% endblock %}
 
@@ -47,7 +47,7 @@
                 </a>
             </div>
             <div class="col-xs-9 col-sm-10 col-md-11 address">
-                <div class="pull-right">{% include 'hosting/snippets/checked.html' with object=place %}</div>
+                <div class="pull-right">{% include-compacted 'hosting/snippets/checked.html' with object=place %}</div>
                 <a href="{{ place.get_absolute_url }}">
                     {% if place.city %}&bull;<strong>{{ place.city }}</strong>{% endif %}<br />
                     {% if place.state_province %}{{ place.state_province }}, {% endif %} {{ place.country.name }}

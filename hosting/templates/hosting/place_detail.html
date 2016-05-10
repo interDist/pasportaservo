@@ -1,7 +1,7 @@
 {% extends 'hosting/base.html' %}
-{% load i18n static %}
+{% load i18n static ps_extras %}
 
-{% block head_title %}
+{% block-compacted head_title %}
     {% if user.profile == place.owner %}
         {% trans "My habitat" %}
     {% else %}
@@ -91,7 +91,7 @@
                                 {% endif %}
                                 {{ place.get_country_display }}
                                 
-                                &nbsp; {% include 'hosting/snippets/checked.html' with object=place %}
+                                &nbsp; {% include-compacted 'hosting/snippets/checked.html' with object=place %}
                             </p>
                         {% endif %}
 
@@ -156,7 +156,7 @@
         {% if user.is_authenticated %}
             <div class="col-xs-12 hidden-md hidden-lg description-small">
                 <a id="status-anchors_notification" class="col-xs-12 anchor-notify" data-placement="bottom"
-                   data-content="{% include 'hosting/snippets/place_owner_anchors.html' %}"></a>
+                   data-content="{% include-compacted 'hosting/snippets/place_owner_anchors.html' %}"></a>
                 {% include 'hosting/snippets/place_description.html' with description=place.description contact_before=place.contact_before max_host=place.max_guest max_night=place.max_night %}
                 {% if place.conditions.all %}
                     {% include 'hosting/snippets/place_conditions.html' with conditions=place.conditions.all %}

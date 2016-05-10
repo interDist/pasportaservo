@@ -1,7 +1,7 @@
 {% extends 'hosting/base_form.html' %}
-{% load i18n static %}
+{% load i18n static ps_extras %}
 
-{% block head_title %}
+{% block-compacted head_title %}
     {% if user.is_staff and place and user.profile != place.owner %}
         {% blocktrans %}Update {{kin}}place{% endblocktrans %}: {{ place.owner.name }},
         {% if place.city %} {{ place.city }} ({{ place.get_country_display }}) {% else %} {{ place.get_country_display }} {% endif %}

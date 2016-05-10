@@ -1,0 +1,33 @@
+{% extends 'hosting/base.html' %}
+{% load i18n static %}
+
+{% block page %}
+<pre>
+{% load ps_extras %}
+ {% compacted %}
+    {% autoescape off %}
+	{{ var1 }} {% compacted ' initial text  <img src=1> ' _("at") , ' ' , user.username _(" or ") '?' as var2 %}
+	! {% verbatim S %} {% comment "inside S" %} {% endverbatim S %}
+
+{% endcompacted %} "{{ var2 }}" ({{ var2_is_safe }})
+	 : {{ user.username }}
+     {% endautoescape %}
+{% endcompacted %}
+{# verbatim QQ #}
+    {% autoescape on %}.. {% trans "My habitat" as var3 %}
+    ,,{% compacted var3 as var4 %}
+		<h1>{{ "find accomodation<br>anywhere in the world."|title }}</h1> {{ user.username }} {% block xyz %}user{% endblock %}
+    {% endcompacted %},,
+    ..{% endautoescape %}
+    {{ var4 }} ({{ var4_is_safe }}) {# endverbatim #}
+{# endverbatim QQ #}
+
+{% block-compacted head_title %}  
+    Test: {{ block.super }};	{% block xyz4 %}{% lorem 3 w random %}{% endblock xyz4 %}
+    {% verbatim A %}{? no-tag ?}{% endverbatim A %}  {{ no_var }}		End-test. {% endblock %}
+{% block xyz2 %} {% block xyz3 %}{% verbatim %}{% if var1 %}yyeess{% else %}nnoo{% endif %}{% endverbatim %}{% endblock %}  {% now "jS F Y H:i" %}  {% endblock %}
+
+[{% include 'hosting/snippets/place_owner_anchors.html' %}]
+[{% include-compacted 'hosting/snippets/place_owner_anchors.html' %}]
+</pre>
+{% endblock page %}

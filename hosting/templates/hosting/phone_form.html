@@ -1,7 +1,7 @@
 {% extends 'hosting/base_form.html' %}
-{% load i18n %}
+{% load i18n ps_extras %}
 
-{% block head_title %}
+{% block-compacted head_title %}
     {% trans "Phone number" %} {{ phone }}
     {% if user.is_staff %}
         {% blocktrans with name=form.profile.name %}of {{ name }}{% endblocktrans %}
