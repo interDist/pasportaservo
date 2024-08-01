@@ -178,12 +178,13 @@ $(function() {
                 }
                 var $controlsBlock = $this.closest(parent),
                     fieldId = $this.data('parent-id') || this.id,
-                    $siblings = $controlsBlock.closest(container).siblings('[id^="' + fieldId + '_option_"]');
+                    $siblings = $controlsBlock.closest(container).siblings('[id^="' + fieldId + '_option_"]'),
+                    errorElements = '[id^="error_"][id$="' + fieldId + '"]:not([data-manual-handling="true"])';
                 if ($siblings.length > 0) {
                     // support complex controls which consist of multiple groups.
                     $controlsBlock = $siblings.addBack().find(parent);
                 }
-                $controlsBlock.children('[id^="error_"][id$="' + fieldId + '"]').hide();
+                $controlsBlock.children(errorElements).hide();
                 $controlsBlock.closest(container).removeClass('has-error');
             }
         }

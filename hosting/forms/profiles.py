@@ -77,6 +77,10 @@ class ProfileForm(forms.ModelForm):
                 req_field.error_messages['required'] = message
                 req_field.widget.attrs['data-error-required'] = message
 
+        self.fields['avatar'].widget.for_bound_field = {
+            'name': self['avatar'].html_name,
+            'label': self['avatar'].label,
+        }
         self.fields['avatar'].widget.attrs['accept'] = 'image/*'
 
     def clean_avatar(self):

@@ -1,0 +1,102 @@
+{% load i18n utils %}
+
+    {# TODO: Test without JavaScript; text-only; in iOS. #}
+    {% if widget.is_initial %}
+        <p class="no-scripting-fallback keep">
+            {{ widget.initial_text }}: <a href="{{ widget.value.url }}" style="display: inline-block">{{ widget.value }}</a>
+            {% if not widget.required %}
+                <span class="checkbox-inline">
+                    <input id="{{ widget.checkbox_id }}" name="{{ widget.checkbox_name }}"
+                           type="checkbox"{% if widget.attrs.disabled %} disabled{% endif %} />
+                    <label for="{{ widget.checkbox_id }}">{{ widget.clear_checkbox_label }}</label>
+                </span>
+            {% endif %}
+            <br />
+            {{ widget.input_text }}:
+        </p>
+    {% endif %}
+
+    <p class="--sr-only">
+        <input name="{{ widget.name }}" type="{{ widget.type }}" data-advanced
+               {% include 'django/forms/widgets/attrs.html' %}{% if not widget.attrs.autocomplete %} autocomplete="off"{% endif %} />
+    </p>
+
+    <div id="{{ widget.attrs.id }}_dropzone" data-file-input="{{ widget.attrs.id }}"
+         class="form-control advanced-file-input-container{% if widget.is_initial %} has-initial{% endif %}">
+        <div class="file-input-preview">
+            {% spaceless %}
+                <div id="{{ widget.attrs.id }}_reset" class="file-input-reset">
+                    <button type="button" class="close requires-scripting" data-checkbox="{{ widget.checkbox_id }}"
+                            title="{{ widget.clear_checkbox_label }}"
+                            data-initial-title="{{ widget.clear_checkbox_label }}"
+                            data-updated-title="{% trans "Return to initial image" %}">
+                        <span class="fa fa-times fa-sm" aria-hidden="true"
+                              data-initial-icon="fa-times"
+                              data-updated-icon="fa-reply"></span>
+                        <span class="tx sr-only"
+                              data-initial-content="{% filter compact %}
+                                    {% blocktrans with image_label=widget.field_label|default:_("Image")|lower trimmed %}
+                                        Remove the {{ image_label }}
+                                    {% endblocktrans %}
+                                {% endfilter %}"
+                              data-updated-content="{% trans "Return to initial image" %}"
+                        ></span>
+                    </button>
+                    <span class="clearfix"></span>
+                </div>
+                <span class="fa fa-file-image fa-3x image-input-placeholder"></span>
+                {% if widget.is_initial %}
+                    <img class="image-input-initial" src="{{ widget.value.url }}" alt="[{{ widget.initial_text }}]" />
+                {% endif %}
+                <img class="image-input-preview" alt="" />
+            {% endspaceless %}
+        </div>
+        <span id="{{ widget.attrs.id }}_dragdrop_control"
+              data-content="{% trans "Drag a picture and drop it here or" %}"
+              data-icon="fa-regular fa-clone fa-spacer-right">
+            <span class="fa" aria-hidden="true"></span>
+        </span>
+        <label for="{{ widget.attrs.id }}" class="btn btn-default btn-sm btn-vert-space-even">
+            <span class="fa fa-regular fa-folder-open fa-spacer-right" aria-hidden="true"></span>
+            {% trans "Choose an image file" %}
+        </label>
+    </div>
+
+    <script>
+        const $FORM_FIELD_ERROR_TEMPLATE =
+            $(document.createElement('span'))
+            .addClass('help-block')
+            .append('<span class="text-danger"></span>')
+            .hide();
+
+        function showFieldError(
+                formFieldContainer, errorElementId, displayText,
+                { manualHandling = false, html = false } = {}
+        ) {
+            let $errorElement = $(formFieldContainer).siblings('#' + errorElementId);
+            if ($errorElement.length == 0) {
+                $errorElement = $FORM_FIELD_ERROR_TEMPLATE.clone()
+                                .attr('id', errorElementId)
+                                .insertAfter(formFieldContainer);
+            }
+            $errorElement.attr('data-manual-handling', manualHandling);
+            // An animation that involves only a non-moving property
+            // like opacity is unlikely to be problematic, therefore
+            // we do not consult `prefers-reduced-motion`.
+            console.log("animating error to 0.1");
+            $errorElement.animate({ opacity: 0.1 }, 400, function() {
+                let $textContainer = $errorElement.children();
+                if (html) {
+                    $textContainer.html(displayText);
+                }
+                else {
+                    $textContainer.text(displayText);
+                }
+                console.log("animating error to 1.0 and showing");
+                $errorElement.show().animate({ opacity: 1 }, 600);
+            });
+        }
+        function clearFieldError(formFieldContainer, errorElementId) {
+            $(formFieldContainer).siblings('#' + errorElementId).remove();
+        }
+    </script>

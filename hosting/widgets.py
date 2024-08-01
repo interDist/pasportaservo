@@ -6,10 +6,18 @@ from django.utils.safestring import mark_safe
 
 from crispy_forms.layout import Field as CrispyLayoutField
 from crispy_forms.utils import TEMPLATE_PACK
+from sass_processor.processor import sass_processor
 
 
 class ClearableWithPreviewImageInput(form_widgets.ClearableFileInput):
+    template_name = 'ui/widget-clearable_file.html'
     preview_template_name = 'ui/widget-image_file_preview.html'
+
+    class Media:
+        css = {
+            'all': (sass_processor('css/file-input-widget.scss'), )
+        }
+        js = ('js/file-input-widget.js', )
 
     class ImagePreviewValue(object):
         def __init__(self, value, template):
@@ -19,15 +27,21 @@ class ClearableWithPreviewImageInput(form_widgets.ClearableFileInput):
         def __str__(self):
             return self.template
 
-    def render(self, name, value, attrs=None, renderer=None):
-        self.field_name = name
-        return super().render(name, value, attrs, renderer)
+    def get_context(self, name, value, attrs):
+        context = super().get_context(name, value, attrs)
+        context['widget']['field_label'] = (
+            getattr(self, 'for_bound_field', {}).get('label')
+        )
+        return context
 
     def format_value(self, value, **kwargs):
         if not self.is_initial(value):
             return
         preview_template = get_template(self.preview_template_name)
-        substitutions = {'field_name': getattr(self, 'field_name', None), 'url': value.url}
+        substitutions = {
+            'field_name': getattr(self, 'for_bound_field', {}).get('name'),
+            'url': value.url,
+        }
         substitutions.update(**kwargs)
         rendered = mark_safe(preview_template.render(substitutions).strip())
         return self.ImagePreviewValue(value, rendered)

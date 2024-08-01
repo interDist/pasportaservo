@@ -1,0 +1,51 @@
+@import "colors";
+
+.controls:has([type="file"][data-advanced]:focus) .advanced-file-input-container label.btn {
+    // TODO: In Boostrap 5, @extend .btn-default:focus
+    color: $color-text;
+    background-color: darken($color-default-bg, 10%);
+    border-color: #8c8c8c;
+    outline: 5px auto -webkit-focus-ring-color;
+    outline-offset: -2px;
+}
+
+.advanced-file-input-container {
+    // TODO: In Boostrap 5, @extend .form-control
+    background-color: $color-gray-light;
+    height: auto;
+
+    &.dragover {
+    // TODO: In Boostrap 5, @extend .form-control:focus
+        $input-border-focus: #66afe9;
+        $input-border-focus-shadow: rgba(red($input-border-focus), green($input-border-focus), blue($input-border-focus), 0.6);
+        border-color: $input-border-focus;
+        outline: 0;
+        box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px $input-border-focus-shadow;
+    }
+
+    > .file-input-preview {
+        margin-top: 2px;
+        margin-bottom: 6px;
+    }
+    .image-input-placeholder {
+        color: lighten($color-gray, 13.5%);
+    }
+    .image-input-initial, .image-input-preview {
+        max-width: 100%;
+    }
+    .image-input-preview {
+        display: none;
+    }
+    &:not(.has-initial) .file-input-reset {
+        display: none;
+    }
+    &.has-initial .image-input-placeholder {
+        display: none;
+    }
+    [id$="dragdrop_control"] {
+        display: none;
+        &.active {
+            display: inline-block;
+        }
+    }
+}
