@@ -8,6 +8,7 @@
 [![HTTPS](https://img.shields.io/badge/HTTPS-jes-green.svg)](https://www.ssllabs.com/ssltest/analyze.html?d=pasportaservo.org)
 [![GNU AGPLv3](https://img.shields.io/badge/licenco-GNU_AGPLv3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0.html)
 [![Kontaktu nin en Telegramo https://t.me/joinchat/Bg10skEz3jFXpBk-nZAuiw](https://img.shields.io/badge/babili%20en-Telegramo-179CDE.svg)](https://t.me/joinchat/Bg10skEz3jFXpBk-nZAuiw)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FinterDist%2Fpasportaservo.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2FinterDist%2Fpasportaservo?ref=badge_shield)
 
 ![CI build](https://github.com/tejoesperanto/pasportaservo/actions/workflows/ci.yml/badge.svg)
 [![Codecov](https://img.shields.io/codecov/c/github/tejoesperanto/pasportaservo.svg)](https://codecov.io/github/tejoesperanto/pasportaservo)
@@ -213,3 +214,6 @@ IP-adreson de la maŝino kaj permesi ties uzon.
 # Licenco
 
 [GNU AGPLv3](LICENSE)
+
+
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FinterDist%2Fpasportaservo.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2FinterDist%2Fpasportaservo?ref=badge_large)
