@@ -18,7 +18,8 @@ from django.views import generic
 
 from django_countries.fields import Country
 
-from hosting.models import Place, Profile
+# Removed top-level import of hosting.models
+# from hosting.models import Place, Profile
 
 from .utils import camel_case_split, join_lazy
 
@@ -127,6 +128,7 @@ class SupervisorAuthBackend(ModelBackend):
         if auth_log.getEffectiveLevel() == logging.DEBUG:
             auth_log.debug("\tobject is %s", repr(obj))
         if obj is not None:
+            from hosting.models import Place, Profile # Moved import here
             if isinstance(obj, Country):
                 countries = [obj]
                 auth_log.debug("\t\tGot a Country, %s", countries)

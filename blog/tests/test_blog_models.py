@@ -204,6 +204,48 @@ class PublishedManagerTests(WebTest):
         mgr = Post.objects
         self.assertEqual(len(mgr.published()), 0)
 
+    def test_save_content_only_separator(self):
+        post = PostFactory.build(content="----", author__profile=None)
+        post.author.save() # Author needs to be saved first if it's a new one from build
+        post.save()
+        self.assertEqual(post.body, "", "Body should be empty when content is only a separator.")
+        self.assertEqual(post.description, "", "Description should be empty when content is only a separator.")
+
+    def test_save_content_unicode(self):
+        # Test with unicode in title and content
+        unicode_title = "你好, 世界"
+        unicode_content_part1 = "これはUnicodeコンテンツです。"
+        unicode_content_part2 = "😊🚀"
+        full_content = f"{unicode_content_part1}----{unicode_content_part2}"
+
+        post = PostFactory.build(title=unicode_title, content=full_content, author__profile=None)
+        post.author.save()
+        post.save()
+
+        self.assertEqual(post.title, unicode_title)
+        # commonmark should handle unicode correctly
+        expected_description = f"<p>{unicode_content_part1}</p>\n"
+        expected_body = f"<p>{unicode_content_part1}{unicode_content_part2}</p>\n" # commonmark removes the separator
+
+        self.assertEqual(post.description, expected_description)
+        self.assertEqual(post.body, expected_body)
+
+    def test_create_post_without_author(self):
+        post_data = {
+            "title": "Post without Author",
+            "slug": "post-without-author",
+            "content": "Some content here.",
+            "author": None, # Explicitly set author to None
+            "pub_date": timezone.now()
+        }
+        # Ensure direct creation and saving works
+        post = Post.objects.create(**post_data)
+        self.assertIsNone(post.author)
+
+        # Verify retrieval
+        retrieved_post = Post.objects.get(slug="post-without-author")
+        self.assertIsNone(retrieved_post.author)
+
     def test_published_with_future_posts(self):
         author = UserFactory(profile=None)
         Post.objects.bulk_create(

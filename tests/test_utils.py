@@ -8,7 +8,8 @@ from django.conf import settings
 from django.contrib.gis.geos import Point as GeoPoint
 from django.core import mail
 from django.test import TestCase, override_settings, tag
-from django.utils.functional import lazy, lazystr
+from django.utils.functional import lazy, lazystr, SimpleLazyObject
+from django.utils.safestring import mark_safe, SafeString
 
 from factory import Faker
 from geocoder.opencage import OpenCageQuery, OpenCageResult
@@ -17,8 +18,8 @@ from requests.exceptions import (
 )
 
 from core.utils import (
-    camel_case_split, is_password_compromised,
-    join_lazy, send_mass_html_mail, sort_by, split,
+    camel_case_split, getattr_, is_password_compromised, # Added getattr_
+    join_lazy, mark_safe_lazy, send_mass_html_mail, sort_by, split, # Added mark_safe_lazy
 )
 from hosting.countries import countries_with_mandatory_region
 from hosting.gravatar import email_to_gravatar
@@ -258,6 +259,58 @@ class UtilityFunctionsTests(AdditionalAsserts, TestCase):
                 self.assertStartsWith(result[0], '/ligilo/{}.'.format(token_prefix))
                 self.assertStartsWith(result[1], '{}.'.format(token_prefix))
                 self.assertEqual(result[1].count('.'), 3 if token_prefix.startswith('.') else 2)
+
+    def test_getattr_utility(self):
+        obj = NamedTuple('TestData', [('a', str), ('b', NamedTuple('Nested', [('c', int)]))])
+        instance = obj(a="value_a", b=obj.b(c=123))
+
+        # Test simple attribute access
+        self.assertEqual(getattr_(instance, 'a'), "value_a")
+        # Test nested attribute access
+        self.assertEqual(getattr_(instance, 'b.c'), 123)
+        # Test with list of path segments
+        self.assertEqual(getattr_(instance, ['b', 'c']), 123)
+
+        # Test path to non-existent attribute
+        with self.assertRaises(AttributeError):
+            getattr_(instance, 'a.non_existent')
+        with self.assertRaises(AttributeError):
+            getattr_(instance, 'non_existent')
+        with self.assertRaises(AttributeError):
+            getattr_(instance, 'b.non_existent')
+
+        # Test empty path string (should ideally raise error or return obj, depends on intent)
+        # Current reduce behavior with empty string path: getattr(obj, '') -> AttributeError
+        with self.assertRaises(AttributeError):
+            getattr_(instance, '')
+
+        # Test on non-object (e.g. string)
+        self.assertEqual(getattr_("string", "upper"), "string".upper) # Returns method itself
+        self.assertEqual(getattr_("string", "upper")(), "STRING")
+
+
+    def test_mark_safe_lazy_evaluation(self):
+
+        def get_unsafe_string():
+            return "<script>alert('unsafe')</script>"
+
+        lazy_safe_obj = mark_safe_lazy(get_unsafe_string)
+
+        self.assertIsInstance(lazy_safe_obj, SimpleLazyObject)
+
+        # Evaluating the lazy object should return a SafeString
+        evaluated_string = str(lazy_safe_obj) # or just `lazy_safe_obj` in a template
+
+        self.assertIsInstance(evaluated_string, SafeString)
+        self.assertEqual(evaluated_string, "<script>alert('unsafe')</script>")
+
+        # Test with a non-callable (should work if mark_safe handles it)
+        unsafe_direct = "<p>unsafe direct</p>"
+        lazy_safe_direct = mark_safe_lazy(unsafe_direct)
+        self.assertIsInstance(lazy_safe_direct, SimpleLazyObject)
+        evaluated_direct = str(lazy_safe_direct)
+        self.assertIsInstance(evaluated_direct, SafeString)
+        self.assertEqual(evaluated_direct, unsafe_direct)
 
 
 @tag('utils')

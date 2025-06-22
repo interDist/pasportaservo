@@ -57,3 +57,22 @@ class CdnTagTests(AdditionalAsserts, TestCase):
         self.assertEqual(page, "")
         page = Template("{% load cdn %}{% cdn version='999.88.7' library='asdf' %}").render(Context())
         self.assertEqual(page, "")
+
+    def test_cdn_case_insensitive_library(self):
+        # Current behavior is case-sensitive, this test confirms that.
+        # If case-insensitivity were desired, this test would fail and indicate a feature change.
+
+        # Test with 'Bootstrap' (capitalized) - should be treated as unknown
+        page_bootstrap_capitalized = Template("{% load cdn %}{% cdn 'Bootstrap' %}").render(Context())
+        self.assertEqual(page_bootstrap_capitalized, "",
+                         "CDN tag should be case-sensitive for library names; 'Bootstrap' should not match 'bootstrap'.")
+
+        # Test with 'JQUERY' (all caps) - should be treated as unknown
+        page_jquery_caps = Template("{% load cdn %}{% cdn 'JQUERY' '1.0' %}").render(Context())
+        self.assertEqual(page_jquery_caps, "",
+                         "CDN tag should be case-sensitive for library names; 'JQUERY' should not match 'jquery'.")
+
+        # Control test: Correct casing should work
+        page_jquery_correct_case = Template("{% load cdn %}{% cdn 'jquery' '1.0' %}").render(Context())
+        self.assertNotEqual(page_jquery_correct_case, "")
+        self.assertIn('jquery@1.0/dist', page_jquery_correct_case)

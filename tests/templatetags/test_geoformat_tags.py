@@ -220,3 +220,35 @@ class GeoURLHashFilterTests(TestCase):
         # City level hash is expected to be at zoom 8.
         page = self.template.render(Context({'result': self.basic_result}))
         self.assertEqual(page, "#8/51.9137824/4.4644483")
+
+    def test_is_location_in_country_missing_geodata(self):
+        # Use a country code that is highly unlikely to be in maps.data.COUNTRIES_GEO
+        # or create a mock place with such a country if PlaceFactory requires valid countries.
+        # For this test, let's assume 'XX' is not in COUNTRIES_GEO
+        mock_place_missing_geodata = self.MockPlace(
+            country='XX',  # Non-existent country code in COUNTRIES_GEO
+            location=self.loc,
+            location_confidence=LocationConfidence.ACCEPTABLE
+        )
+
+        # This should raise a KeyError when trying to access COUNTRIES_GEO['XX']
+        with self.assertRaises(KeyError):
+            self.template.render(Context({'place': mock_place_missing_geodata}))
+
+        # Test with a valid country but location confidence too low to trigger the check
+        mock_place_low_confidence = self.MockPlace(
+            country='NL',
+            location=self.loc,
+            location_confidence=LocationConfidence.UNDETERMINED # Too low
+        )
+        page = self.template.render(Context({'place': mock_place_low_confidence}))
+        self.assertEqual(page, str(False), "Should return False if confidence is too low, before geodata check.")
+
+        # Test with CONFIRMED confidence, which bypasses the geo check
+        mock_place_confirmed = self.MockPlace(
+            country='XX', # Even with invalid country for geodata
+            location=self.loc,
+            location_confidence=LocationConfidence.CONFIRMED
+        )
+        page_confirmed = self.template.render(Context({'place': mock_place_confirmed}))
+        self.assertEqual(page_confirmed, str(True), "Should return True if confidence is CONFIRMED, bypassing geodata check.")

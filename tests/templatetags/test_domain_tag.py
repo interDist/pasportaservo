@@ -71,3 +71,38 @@ class DomainTagTests(TestCase):
             self.assertEqual(page, "http://localhost:8000")
             page = self.template_with_url.render(Context())
             self.assertEqual(page, "http://localhost:8000/418?I=am&amp;Teapot")
+
+    def test_domain_fallback_no_allowed_hosts(self):
+        # When DEBUG=False and ALLOWED_HOSTS is empty, it should raise an IndexError
+        # or handle it gracefully depending on Django's internal behavior for get_current_site.
+        # The domain tag itself might fall back to a default or error.
+        # For now, let's assume it should error or return a very basic default if any.
+        # Django's get_current_site would likely fail if ALLOWED_HOSTS is empty and no Site matches.
+        # The tag's fallback is `settings.ALLOWED_HOSTS[0]`.
+        with self.settings(DEBUG=False, ALLOWED_HOSTS=[]):
+            # This test expects an IndexError because the tag tries to access ALLOWED_HOSTS[0]
+            with self.assertRaises(IndexError):
+                self.template_sans_url.render(Context({}))
+
+    def test_domain_url_arg_non_ascii(self):
+        # Test with a URL argument containing non-ASCII characters.
+        # The domain tag itself doesn't explicitly handle URL encoding of the path argument.
+        # Django's reverse() or string formatting usually does. Here, it's direct concatenation.
+        # Browsers are generally good at handling UTF-8 in paths, but %-encoding is safer.
+        # The current tag will output the non-ASCII path as is.
+        request = self.request_factory.get('/')
+        non_ascii_path = "/उत्तर प्रदेश" # Example: Hindi "Uttar Pradesh"
+        template = Template("{% load domain %}{% domain '/उत्तर प्रदेश' %}")
+        page = template.render(Context({'request': request}))
+        # The '&' will be escaped by default by Django templates if it was part of the path.
+        # Here, the path itself is non-ASCII.
+        self.assertEqual(page, f"http://mytestsrv{non_ascii_path}")
+
+        # Example with query parameters (which the domain tag doesn't build, but might be part of 'url')
+        url_with_query = "/path?city=你好"
+        template_query = Template("{% load domain %}{% domain '/path?city=你好' %}")
+        page_query = template_query.render(Context({'request': request}))
+        # The '&' in query params if it were part of the path would be escaped by default.
+        # Here, the non-ASCII chars are in the query string.
+        # The domain tag simply appends. Browsers will handle this.
+        self.assertEqual(page_query, f"http://mytestsrv{url_with_query.replace('&', '&amp;')}")

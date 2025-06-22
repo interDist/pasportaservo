@@ -1,11 +1,12 @@
 from django.conf import settings
+from django.db.models import ProtectedError
 from django.test import override_settings, tag
 from django.utils.functional import lazy
 
 from django_webtest import WebTest
 
 from ..assertions import AdditionalAsserts
-from ..factories import PhoneFactory
+from ..factories import PhoneFactory, ProfileFactory
 from .test_managers import TrackingManagersTests
 
 
@@ -58,3 +59,13 @@ class PhoneModelTests(AdditionalAsserts, TrackingManagersTests, WebTest):
                     self.phone.rawdisplay(),
                     f"{expected_type}: {self.phone.number.as_international}"
                 )
+
+    def test_delete_protected_visibility_settings(self):
+        phone = PhoneFactory(profile=ProfileFactory()) # Ensure it has a visibility setting
+
+        with self.assertRaises(ProtectedError):
+            phone.visibility.delete()
+
+        # Ensure phone still exists and visibility object is still linked
+        phone.refresh_from_db()
+        self.assertIsNotNone(phone.visibility)

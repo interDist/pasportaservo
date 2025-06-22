@@ -1,5 +1,5 @@
 Django==3.2.20
-psycopg2==2.8.6
+psycopg2-binary
 Pillow==10.0.0
 
 awesome-slugify==1.6.5

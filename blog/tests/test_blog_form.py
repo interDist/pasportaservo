@@ -55,3 +55,47 @@ class PostFormTests(WebTest):
             self.assertEqual(saved_post.description, "<p>{}</p>\n".format(stub.description))
         with self.subTest(field='body'):
             self.assertEqual(saved_post.body, "<p>{}</p>\n".format(stub.body))
+
+    def test_submit_existing_slug(self):
+        existing_post = PostFactory(author__profile=None)
+        data = {
+            'title': "Another Title",
+            'slug': existing_post.slug, # Use existing slug
+            'content': "Some more content."
+        }
+        form = PostForm(data)
+        self.assertFalse(form.is_valid())
+        self.assertIn('slug', form.errors)
+        # Django's default unique validation error message for ModelForms
+        # is usually "Post with this Slug already exists."
+        # or similar, depending on model's verbose_name.
+        # We check for a message containing "already exists" for robustness.
+        error_msg = form.errors['slug'][0].lower()
+        self.assertIn("slug already exists", error_msg)
+
+    def test_submit_title_too_long(self):
+        long_title = "a" * 201 # Post.title max_length is 200
+        stub = PostFactory.stub(author=None)
+        data = {
+            'title': long_title,
+            'slug': stub.slug,
+            'content': stub.content,
+        }
+        form = PostForm(data)
+        self.assertFalse(form.is_valid())
+        self.assertIn('title', form.errors)
+        # Default max_length error message
+        self.assertIn("Ensure this value has at most 200 characters", form.errors['title'][0])
+
+    def test_submit_invalid_slug_chars(self):
+        stub = PostFactory.stub(author=None)
+        data = {
+            'title': stub.title,
+            'slug': "invalid slug with spaces and ?", # Invalid slug
+            'content': stub.content,
+        }
+        form = PostForm(data)
+        self.assertFalse(form.is_valid())
+        self.assertIn('slug', form.errors)
+        # Default SlugField error message
+        self.assertIn("Enter a valid “slug” consisting of letters, numbers, underscores or hyphens.", form.errors['slug'][0])

@@ -144,6 +144,35 @@ class ValidatorsTests(AdditionalAsserts, TestCase):
         self.assertTrue(hasattr(validate_latin, 'constraint'))
         self.assertIn('pattern', validate_latin.constraint)
 
+    def test_validate_latin_mixed_scripts(self):
+        # Current validator only checks the first character.
+        # This test confirms that behavior.
+        valid_if_first_char_is_latin = [
+            "Latin日本語", # Starts Latin, then Japanese
+            "ČeskýРусский", # Starts Latin (Czech), then Cyrillic
+            "EnglishΕλληνικά", # Starts Latin, then Greek
+        ]
+        invalid_if_first_char_is_not_latin = [
+            "日本語Latin",
+            "РусскийČeský",
+            "ΕλληνικάEnglish",
+        ]
+
+        for value in valid_if_first_char_is_latin:
+            with self.subTest(valid_value_current_logic=value):
+                with self.assertNotRaises(ValidationError):
+                    validate_latin(value)
+
+        for value in invalid_if_first_char_is_not_latin:
+            with self.subTest(invalid_value_current_logic=value):
+                with self.assertRaises(ValidationError) as cm:
+                    validate_latin(value)
+                with override_settings(LANGUAGE_CODE='en'):
+                    self.assertStartsWith(
+                        next(iter(cm.exception)),
+                        "Please provide this data in Latin characters"
+                    )
+
     def test_validate_image_type(self):
         faker = Faker._get_faker()
         data = BytesIO(faker.binary(length=10))

@@ -2,6 +2,7 @@ from datetime import date
 from unittest.mock import PropertyMock, patch
 
 from django.core.exceptions import ValidationError
+from django.db.models import ProtectedError
 from django.test import override_settings, tag
 
 from django_countries.fields import Country
@@ -11,7 +12,7 @@ from factory import Faker
 from hosting.managers import AvailableManager
 
 from ..assertions import AdditionalAsserts
-from ..factories import PlaceFactory
+from ..factories import PlaceFactory, ProfileFactory # Added ProfileFactory
 from .test_managers import TrackingManagersTests
 
 
@@ -218,3 +219,45 @@ class PlaceModelTests(AdditionalAsserts, TrackingManagersTests, WebTest):
                         place.get_absolute_url(),
                         expected_urls[lang].format(place.pk)
                     )
+
+    def test_subregion_property_no_matching_countryregion(self):
+        # Create a place in a country but with a state_province string that won't match any CountryRegion
+        owner_profile = ProfileFactory()
+        place = PlaceFactory(
+            owner=owner_profile,
+            country=Country('US'), # Assuming 'US' allows state_province as text
+            state_province="NonExistentStateOrProvince"
+        )
+
+        # Access the subregion property
+        subregion = place.subregion
+
+        self.assertIsNotNone(subregion)
+        self.assertEqual(subregion.iso_code, 'X-00') # Default for non-matched
+        self.assertEqual(subregion.latin_code, "NonExistentStateOrProvince")
+        self.assertEqual(subregion.country, Country('US'))
+
+        # Verify that save is a no-op for this dummy object
+        try:
+            subregion.save() # Should not raise an error and not save anything
+        except Exception as e:
+            self.fail(f"Dummy subregion save() method raised an unexpected exception: {e}")
+
+        # Ensure no new CountryRegion was actually created
+        self.assertFalse(CountryRegion.objects.filter(iso_code='X-00', country='US').exists())
+
+    def test_delete_protected_visibility_settings(self):
+        place = PlaceFactory()
+
+        # Test deleting place.visibility
+        with self.assertRaises(ProtectedError):
+            place.visibility.delete()
+
+        # Test deleting place.family_members_visibility
+        with self.assertRaises(ProtectedError):
+            place.family_members_visibility.delete()
+
+        # Ensure place still exists and visibility objects are still linked
+        place.refresh_from_db()
+        self.assertIsNotNone(place.visibility)
+        self.assertIsNotNone(place.family_members_visibility)

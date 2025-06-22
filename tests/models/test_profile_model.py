@@ -7,11 +7,13 @@ from django.test import RequestFactory, TestCase, override_settings, tag
 from django.utils.html import format_html
 
 from factory import Faker
+from django.utils import timezone # Added for dynamic_hosting_attributes
 
 from hosting.gravatar import email_to_gravatar
+from hosting.models import FamilyMember # Added for FamilyMemberModelProxyTests
 
 from ..assertions import AdditionalAsserts
-from ..factories import ProfileFactory, ProfileSansAccountFactory, UserFactory
+from ..factories import ProfileFactory, ProfileSansAccountFactory, UserFactory, PlaceFactory # Added PlaceFactory
 from .test_managers import TrackingManagersTests
 
 
@@ -460,3 +462,188 @@ class PreferencesModelTests(AdditionalAsserts, TestCase):
             self.profile.pref._meta.get_field('site_analytics_consent').default,
             None
         )
+
+    def test_mark_invalid_emails_scenarios(self):
+        user1 = UserFactory(email="valid1@example.com")
+        profile1 = user1.profile
+        profile1.email = "public_valid1@example.com"
+        profile1.save()
+
+        user2 = UserFactory(email="valid2@example.com")
+        # Profile2 will not have a public email initially
+
+        user3 = UserFactory(email=f"{settings.INVALID_PREFIX}already_invalid@example.com")
+        profile3 = user3.profile
+        profile3.email = f"{settings.INVALID_PREFIX}public_already_invalid@example.com"
+        profile3.save()
+
+        # Test with empty list
+        Profile.mark_invalid_emails([])
+        user1.refresh_from_db(); profile1.refresh_from_db()
+        self.assertEqual(user1.email, "valid1@example.com")
+        self.assertEqual(profile1.email, "public_valid1@example.com")
+
+        # Test with some valid, some already invalid, some non-existent
+        emails_to_mark = [
+            "valid1@example.com", # Will be marked
+            "public_valid1@example.com", # Will be marked
+            f"{settings.INVALID_PREFIX}already_invalid@example.com", # Already marked, no change
+            "nonexistent@example.com" # No effect
+        ]
+        Profile.mark_invalid_emails(emails_to_mark)
+
+        user1.refresh_from_db(); profile1.refresh_from_db()
+        user3.refresh_from_db(); profile3.refresh_from_db()
+
+        self.assertEqual(user1.email, f"{settings.INVALID_PREFIX}valid1@example.com")
+        self.assertEqual(profile1.email, f"{settings.INVALID_PREFIX}public_valid1@example.com")
+        self.assertEqual(user3.email, f"{settings.INVALID_PREFIX}already_invalid@example.com") # Unchanged
+        self.assertEqual(profile3.email, f"{settings.INVALID_PREFIX}public_already_invalid@example.com") # Unchanged
+
+        # Ensure user2's email which was not in the list is unchanged
+        user2.refresh_from_db()
+        self.assertEqual(user2.email, "valid2@example.com")
+
+
+    def test_mark_valid_emails_scenarios(self):
+        user1 = UserFactory(email=f"{settings.INVALID_PREFIX}invalid1@example.com")
+        profile1 = user1.profile
+        profile1.email = f"{settings.INVALID_PREFIX}public_invalid1@example.com"
+        profile1.save()
+
+        user2 = UserFactory(email=f"{settings.INVALID_PREFIX}invalid2@example.com")
+        # Profile2 will not have a public email initially
+
+        user3 = UserFactory(email="already_valid@example.com")
+        profile3 = user3.profile
+        profile3.email = "public_already_valid@example.com"
+        profile3.save()
+
+        # Test with empty list
+        Profile.mark_valid_emails([])
+        user1.refresh_from_db(); profile1.refresh_from_db()
+        self.assertEqual(user1.email, f"{settings.INVALID_PREFIX}invalid1@example.com")
+        self.assertEqual(profile1.email, f"{settings.INVALID_PREFIX}public_invalid1@example.com")
+
+        # Test with some invalid, some already valid, some non-existent
+        emails_to_unmark = [
+            f"{settings.INVALID_PREFIX}invalid1@example.com", # Will be unmarked
+            f"{settings.INVALID_PREFIX}public_invalid1@example.com", # Will be unmarked
+            "already_valid@example.com", # Already valid, no change
+            "nonexistent@example.com" # No effect
+        ]
+        Profile.mark_valid_emails(emails_to_unmark)
+
+        user1.refresh_from_db(); profile1.refresh_from_db()
+        user3.refresh_from_db(); profile3.refresh_from_db()
+
+        self.assertEqual(user1.email, "invalid1@example.com")
+        self.assertEqual(profile1.email, "public_invalid1@example.com")
+        self.assertEqual(user3.email, "already_valid@example.com") # Unchanged
+        self.assertEqual(profile3.email, "public_already_valid@example.com") # Unchanged
+
+        # Ensure user2's email which was not in the list is unchanged
+        user2.refresh_from_db()
+        self.assertEqual(user2.email, f"{settings.INVALID_PREFIX}invalid2@example.com")
+
+    def test_confirm_all_info_no_related_objects(self):
+        profile = ProfileFactory(user=UserFactory(profile=None)) # Ensure no existing relations from factory
+        self.assertIsNone(profile.confirmed_on)
+
+        profile.confirm_all_info(True)
+        profile.refresh_from_db()
+        self.assertIsNotNone(profile.confirmed_on)
+
+        profile.confirm_all_info(False)
+        profile.refresh_from_db()
+        self.assertIsNone(profile.confirmed_on)
+
+    def test_dynamic_hosting_attributes(self):
+        profile = ProfileFactory()
+        self.assertEqual(profile.has_places_for_hosting, 0)
+        self.assertEqual(profile.has_places_for_meeting, 0)
+        self.assertEqual(profile.is_hosting, 0) # is_hosting is an alias for has_places_for_hosting
+        self.assertEqual(profile.is_meeting, 0)
+        self.assertEqual(profile.has_places_for_in_book, 0)
+        self.assertEqual(profile.is_accepting_guests, 0)
+
+        # Add a place for hosting
+        place1 = ProfileFactory.create_place_for(profile, available=True, in_book=True)
+        profile.refresh_from_db() # Refresh to clear cached properties if any, though not strictly needed for this
+        # Re-fetch profile to ensure Place relations are seen by the properties if they re-query
+        profile_reloaded = Profile.objects.get(pk=profile.pk)
+
+        self.assertEqual(profile_reloaded.has_places_for_hosting, 1)
+        self.assertEqual(profile_reloaded.is_hosting, 1)
+        self.assertEqual(profile_reloaded.has_places_for_in_book, 1)
+        self.assertEqual(profile_reloaded.is_accepting_guests, 1)
+        self.assertEqual(profile_reloaded.has_places_for_meeting, 0) # Not meeting
+
+        # Add a place for meeting only
+        place2 = ProfileFactory.create_place_for(profile, available=False, tour_guide=True, in_book=False)
+        profile_reloaded = Profile.objects.get(pk=profile.pk)
+        self.assertEqual(profile_reloaded.has_places_for_hosting, 1)
+        self.assertEqual(profile_reloaded.has_places_for_meeting, 1)
+        self.assertEqual(profile_reloaded.is_accepting_guests, 1) # Still 1 from place1
+        self.assertEqual(profile_reloaded.has_places_for_in_book, 1) # Still 1 from place1
+
+        # Make place1 not available for hosting
+        place1.available = False
+        place1.save()
+        profile_reloaded = Profile.objects.get(pk=profile.pk)
+        self.assertEqual(profile_reloaded.has_places_for_hosting, 0)
+        self.assertEqual(profile_reloaded.is_hosting, 0)
+        self.assertEqual(profile_reloaded.is_accepting_guests, 0) # No hosting places accept guests
+        self.assertEqual(profile_reloaded.has_places_for_meeting, 1) # place2 still meeting
+        self.assertEqual(profile_reloaded.has_places_for_in_book, 0) # place1 was in book but now not available
+
+        # Delete place2
+        place2.deleted_on = timezone.now()
+        place2.save()
+        profile_reloaded = Profile.objects.get(pk=profile.pk)
+        self.assertEqual(profile_reloaded.has_places_for_meeting, 0)
+
+
+@tag('models', 'profile', 'familymember')
+class FamilyMemberModelProxyTests(TestCase):
+    def test_owner_property_no_user_no_current_owner(self):
+        # Create a Profile instance that would represent a FamilyMember without a user account
+        family_member_profile = ProfileSansAccountFactory()
+        # Cast to FamilyMember proxy model
+        family_member_instance = FamilyMember.objects.get(pk=family_member_profile.pk)
+
+        # Ensure _current_owner is not set
+        if hasattr(family_member_instance, '_current_owner'):
+            delattr(family_member_instance, '_current_owner')
+
+        self.assertIsNone(family_member_instance.user_id)
+        self.assertIsNone(family_member_instance.owner,
+                          "Owner should be None if no user_id and _current_owner is not set.")
+
+    def test_owner_property_with_user_ignores_external_set(self):
+        # Create a Profile instance that has a user account
+        user_profile = ProfileFactory()
+        # Cast to FamilyMember proxy model
+        family_member_instance = FamilyMember.objects.get(pk=user_profile.pk)
+
+        self.assertIsNotNone(family_member_instance.user_id)
+
+        # Try to set _current_owner externally
+        another_profile = ProfileFactory()
+        family_member_instance.owner = another_profile # Uses the setter
+
+        # Owner should still be self (user_profile) because user_id exists
+        self.assertEqual(family_member_instance.owner, user_profile,
+                         "Owner should be self if user_id exists, ignoring external _current_owner.")
+        self.assertNotEqual(family_member_instance.owner, another_profile)
+
+    def test_owner_property_no_user_with_current_owner(self):
+        family_member_profile = ProfileSansAccountFactory()
+        family_member_instance = FamilyMember.objects.get(pk=family_member_profile.pk)
+
+        current_owner_profile = ProfileFactory()
+        family_member_instance.owner = current_owner_profile # Uses the setter
+
+        self.assertIsNone(family_member_instance.user_id)
+        self.assertEqual(family_member_instance.owner, current_owner_profile,
+                         "Owner should be _current_owner if no user_id and _current_owner is set.")

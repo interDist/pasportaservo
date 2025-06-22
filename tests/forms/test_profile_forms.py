@@ -1,6 +1,7 @@
 from collections import namedtuple
 from datetime import date, timedelta
 from unittest.mock import patch
+from django.db import IntegrityError # Added for test_create_profile_for_user_already_has_profile
 
 from django.core.exceptions import NON_FIELD_ERRORS
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -815,6 +816,26 @@ class ProfileCreateFormTests(AdditionalAsserts, ProfileFormTestingBase, WebTest)
                 'slug': user.profile.autoslug})
         )
         self.assertEqual(user.profile.email, user.email)
+
+    def test_create_profile_for_user_already_has_profile(self):
+        existing_profile_user = ProfileFactory().user # User already has a profile
+
+        form_data = {
+            'first_name': 'Test',
+            'last_name': 'User',
+            'birth_date': date(2000, 1, 1),
+        }
+        # Pass the user who already has a profile
+        form = self._init_form(data=form_data, user=existing_profile_user, save=True)
+
+        # The Profile model has a OneToOneField to User.
+        # Attempting to save a new Profile for a User that already has one
+        # should raise an IntegrityError at the database level if not caught earlier.
+        # Ideally, the form or model's clean method should catch this.
+        # For now, we test the IntegrityError that would occur if form.save() is called.
+        # If Profile.user had unique=True (it does via OneToOneField), this triggers.
+        with self.assertRaises(IntegrityError):
+            form.save(commit=True)
 
 
 @tag('forms', 'forms-profile', 'profile')

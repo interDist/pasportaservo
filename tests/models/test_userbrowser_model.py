@@ -1,3 +1,4 @@
+from django.db import DataError
 from django.test import TestCase, override_settings, tag
 
 from ..factories import UserBrowserFactory, UserFactory
@@ -5,6 +6,9 @@ from ..factories import UserBrowserFactory, UserFactory
 
 @tag('models', 'auth')
 class UserBrowserModelTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = UserFactory(profile=None)
     def test_field_max_lengths(self):
         ub = UserBrowserFactory.build()
         self.assertEqual(ub._meta.get_field('user_agent_string').max_length, 250)
@@ -44,3 +48,8 @@ class UserBrowserModelTests(TestCase):
         with override_settings(LANGUAGE_CODE='eo'):
             self.assertEqual(str(ub), "jekeleme: ?  ĉe ? ")
             self.assertEqual(str(repr(ub)), "<User: jekeleme · Browser:   · OS:  >")
+
+    def test_user_agent_string_too_long(self):
+        long_ua_string = "a" * 251
+        with self.assertRaises(DataError):
+            UserBrowserFactory(user=self.user, user_agent_string=long_ua_string)
