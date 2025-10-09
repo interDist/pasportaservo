@@ -554,6 +554,38 @@ class AuthMixinConfigTests(AdditionalAsserts, TestCase):
         self.assertEqual(view.role, AuthRole.VISITOR)
         self.assertEqual(response.status_code, 200)
 
+
+@tag('integration', 'honeypot')
+class HoneypotTests(WebTest):
+    """
+    Tests for the honeypot used in forms to prevent spam.
+    """
+
+    def test_registration_form_honeypot(self):
+        """
+        A registration attempt with the honeypot field filled in is expected
+        to be refused, and an audit log message is expected to be written.
+        """
+        User = UserFactory._meta.model
+        nb_users_before = User.objects.count()
+
+        register_url = reverse('register')
+        page = self.app.get(register_url)
+        form = page.form
+        form['username'] = 'honeypot-test-user'
+        form['password1'] = 'test-password'
+        form['password2'] = 'test-password'
+        form['email'] = 'honeypot-test-user@example.com'
+        form['realm'] = 'some-value-to-trigger-honeypot'
+
+        with self.assertLogs('core.auth', level='ERROR') as log_watcher:
+            response = form.submit()
+            self.assertIn("Registration failed, flies found in honeypot", log_watcher.output[0])
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(User.objects.count(), nb_users_before)
+        self.assertContains(response, "Make sure that this field is kept completely blank.")
+
         request.user = AnonymousUser()  # Simulate a non-authenticated user.
         # Accessing a misconfigured view (which does not define an authorization base)
         # for which anonymous access is allowed, with a non-authenticated user, is
