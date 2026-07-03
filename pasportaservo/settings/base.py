@@ -236,7 +236,13 @@ SYSTEM_LOCALE = f'{LANGUAGE_CODE.replace("-", "_")}.{"UTF-8"}'
 try:
     locale.setlocale(locale.LC_ALL, SYSTEM_LOCALE)
 except locale.Error:
-    raise locale.Error(f"Could not set locale {SYSTEM_LOCALE}: make sure that it is enabled on the system.")
+    # Fallback to a available locale if the desired one is not available (e.g. in some CI/test environments)
+    for fallback in ['en_US.UTF-8', 'en_US.utf8', 'C.UTF-8', 'C.utf8', '']:
+        try:
+            locale.setlocale(locale.LC_ALL, fallback)
+            break
+        except locale.Error:
+            continue
 
 def get_current_commit():
     import subprocess
